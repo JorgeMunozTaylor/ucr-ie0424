@@ -15,7 +15,7 @@ module system_tb;
 	end
 
 	wire trap;
-	wire [7:0] out_byte;
+	wire [10:0] out_byte;
 	wire out_byte_en;
 
 	system uut (

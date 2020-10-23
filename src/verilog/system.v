@@ -1,17 +1,49 @@
+/*
+    Modified by Jorge Munoz Taylor
+    A53863
+    Project 5
+    Digital circuit laboratory I
+    II-2020
+*/
+
 `timescale 1 ns / 1 ps
 
+`define SHOW_IN_DISPLAYS 32'h1000_0000
+`define CACHE_ADDR       32'h1000_0008
+`define CACHE_DATA       32'h1000_000C
+`define GET_MEMORY_ADDR  32'h1000_0004
+
+
 module system (
-	input            clk,
-	input            resetn,
-	output           trap,
-	output reg [7:0] out_byte,
-	output reg       out_byte_en
+	input             clk,
+	input             resetn,
+	output            trap,
+	output reg [10:0] out_byte,
+	output reg        out_byte_en,
+	output     [7:0]  catodes,
+	output     [7:0]  anodes
+
+	//output     [12:0] ddr2_addr,          
+	//output     [2:0]  ddr2_ba,          
+	//output            ddr2_ras_n,          
+	//output            ddr2_cas_n,          
+	//output            ddr2_we_n,          
+	//output            ddr2_ck_p,          
+	//output            ddr2_ck_n,          
+	//output            ddr2_cke,          
+	//output            ddr2_cs_n,          
+	//output     [1:0]  ddr2_dm,          
+	//output            ddr2_odt,          
+	//output     [15:0] ddr2_dq,          
+	//output     [1:0]  ddr2_dqs_p,          
+	//output     [1:0]  ddr2_dqs_n  
 );
+
 	// set this to 0 for better timing but less performance/MHz
 	parameter FAST_MEMORY = 1;
 
-	// 4096 32bit words = 16kB memory
-	parameter MEM_SIZE = 4096;
+	// 16384 32bit words = 64kB memory
+	parameter MEM_SIZE = 16384;
 
 	wire mem_valid;
 	wire mem_instr;
@@ -27,7 +59,8 @@ module system (
 	wire [31:0] mem_la_wdata;
 	wire [3:0] mem_la_wstrb;
 
-	picorv32 picorv32_core (
+	picorv32 picorv32_core
+	(
 		.clk         (clk         ),
 		.resetn      (resetn      ),
 		.trap        (trap        ),
@@ -56,6 +89,79 @@ module system (
 	reg [31:0] m_read_data;
 	reg m_read_en;
 
+
+
+	/*
+	*********************************************
+	Part 1: Display the last odd numbers.
+	*********************************************
+	*/
+
+	// Store the num to display in the nexys 4 DDR (LEDS or 7-segment ).
+	reg [31:0] num_to_display;
+	reg [31:0] temp_addr;
+
+	
+	seven_segment_dec DISPLAY_ODD 
+	(
+		.clk			( clk ),           //
+		.num_to_display	( num_to_display), // 32 bit number that will show on the displays.
+		.reset			( reset ),         //
+		.catodes		( catodes ),       // 7 segment code of digit for the display.
+		.anodes			( anodes ) 		   // Select display that turn on.
+	);
+ 
+	// ******************************************
+
+//	reg device_temp_i = 1'b0;
+//
+//	reg [26:0] ram_a;            
+//	reg [15:0] ram_dq_i;            
+//	wire [15:0] ram_dq_o;            
+//	reg ram_cen;            
+//	reg ram_oen;            
+//	reg ram_wen;            
+//	reg ram_ub;            
+//	reg ram_lb; 
+
+
+	/* Module that connect the picorv32 with the internal Nexys DDR2 memory */
+// 	ram2ddrxadc sdram_controller_ddr2 
+// 	(	
+//		.clk_200MHz_i  ( clk ),        
+//		.rst_i         ( reset ),        
+//		.device_temp_i ( device_temp_i ),        
+//				
+//		.ram_a    ( ram_a ),            
+//		.ram_dq_i ( ram_dq_i ),            
+//		.ram_dq_o ( ram_dq_o ),            
+//		.ram_cen  ( ram_cen ),            
+//		.ram_oen  ( ram_oen ),            
+//		.ram_wen  ( ram_wen ),            
+//		.ram_ub   ( ram_ub ),            
+//		.ram_lb   ( ram_lb ),            
+//		
+//		// DDR2 ports
+//		.ddr2_addr  ( ddr2_addr ),          
+//		.ddr2_ba    ( ddr2_ba ),          
+//		.ddr2_ras_n ( ddr2_ras_n),          
+//		.ddr2_cas_n ( ddr2_cas_n ),          
+//		.ddr2_we_n  ( ddr2_we_n ),          
+//		.ddr2_ck_p  ( ddr2_ck_p ),          
+//		.ddr2_ck_n  ( ddr2_ck_n ),          
+//		.ddr2_cke   ( ddr2_cke ),          
+//		.ddr2_cs_n  ( ddr2_cs_n ),          
+//		.ddr2_dm    ( ddr2_dm ),          
+//		.ddr2_odt   ( ddr2_odt ),          
+//		.ddr2_dq    ( ddr2_dq ),          
+//		.ddr2_dqs_p ( ddr2_dqs_p ),          
+//		.ddr2_dqs_n ( ddr2_dqs_n )         
+//	);
+
+
+
+	// ******************************************
+
 	generate if (FAST_MEMORY) begin
 		always @(posedge clk) begin
 			mem_ready <= 1;
@@ -67,11 +173,49 @@ module system (
 				if (mem_la_wstrb[2]) memory[mem_la_addr >> 2][23:16] <= mem_la_wdata[23:16];
 				if (mem_la_wstrb[3]) memory[mem_la_addr >> 2][31:24] <= mem_la_wdata[31:24];
 			end
+
+
 			else
-			if (mem_la_write && mem_la_addr == 32'h1000_0000) begin
-				out_byte_en <= 1;
-				out_byte <= mem_la_wdata;
+			if (mem_la_write && mem_la_addr == `SHOW_IN_DISPLAYS) begin
+				out_byte_en    <= 1;
+				out_byte       <= mem_la_wdata;
+				num_to_display <= mem_la_wdata; // Store the desired number for use it in the circuit.
 			end
+
+			else 
+			if (mem_la_write && mem_la_addr == `CACHE_ADDR) 
+			begin
+				memory [mem_la_wdata] <= mem_la_wdata+8;
+				temp_addr <= mem_la_wdata+4;		
+			end
+				
+			else 
+			if (mem_la_write && mem_la_addr == `CACHE_DATA) 
+			begin
+				memory [temp_addr] <= mem_la_wdata;
+			end		
+		
+				
+			/**/
+			else 
+			if (mem_la_write && mem_la_addr == `GET_MEMORY_ADDR) 
+			begin
+				temp_addr <= mem_la_wdata;
+			end	
+
+			else 
+			if (mem_la_read && mem_la_addr == `CACHE_ADDR) 
+			begin
+				mem_rdata <= memory[temp_addr];	
+			end					
+
+			else 
+			if (mem_la_read && mem_la_addr == `CACHE_DATA) 
+			begin
+				mem_rdata <= memory[temp_addr+4];	
+			end	
+			
+
 		end
 	end else begin
 		always @(posedge clk) begin
@@ -85,21 +229,27 @@ module system (
 
 			(* parallel_case *)
 			case (1)
-				mem_valid && !mem_ready && !mem_wstrb && (mem_addr >> 2) < MEM_SIZE: begin
+				mem_valid && !mem_ready && !mem_wstrb && (mem_addr >> 2) < MEM_SIZE: 
+				begin
 					m_read_en <= 1;
 				end
-				mem_valid && !mem_ready && |mem_wstrb && (mem_addr >> 2) < MEM_SIZE: begin
+
+				mem_valid && !mem_ready && |mem_wstrb && (mem_addr >> 2) < MEM_SIZE: 
+				begin
 					if (mem_wstrb[0]) memory[mem_addr >> 2][ 7: 0] <= mem_wdata[ 7: 0];
 					if (mem_wstrb[1]) memory[mem_addr >> 2][15: 8] <= mem_wdata[15: 8];
 					if (mem_wstrb[2]) memory[mem_addr >> 2][23:16] <= mem_wdata[23:16];
 					if (mem_wstrb[3]) memory[mem_addr >> 2][31:24] <= mem_wdata[31:24];
 					mem_ready <= 1;
 				end
-				mem_valid && !mem_ready && |mem_wstrb && mem_addr == 32'h1000_0000: begin
+
+				mem_valid && !mem_ready && |mem_wstrb && mem_addr == 32'h1000_0000: 
+				begin
 					out_byte_en <= 1;
 					out_byte <= mem_wdata;
 					mem_ready <= 1;
 				end
+
 			endcase
 		end
 	end endgenerate
