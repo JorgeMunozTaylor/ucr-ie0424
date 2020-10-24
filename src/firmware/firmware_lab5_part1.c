@@ -13,7 +13,7 @@
 #define CACHE_DATA       0x1000000C
 #define GET_MEMORY_ADDR  0x10000004
 
-#define LOOP_WAIT_LIMIT 2000000 // Delay
+#define LOOP_WAIT_LIMIT 20//2000000 // Delay
 
 
 
@@ -65,11 +65,11 @@ void Last_5_odd_numbers ()
 	for ( uint32_t i=0; i<5; i++ )
 	{
 		putuint ( SHOW_IN_DISPLAYS, ODDS[4-i] ); 
-		counter = 0;
 
-		while (counter < LOOP_WAIT_LIMIT) {
+		counter = 0;
+		while (counter < LOOP_WAIT_LIMIT) 
 			counter++;
-		}
+		
 
 	}// For end
 
@@ -97,7 +97,6 @@ void main() {
 					
 		cache_addr = cache_addr + 8;
 		data++;
-
 	} 
 
 	
@@ -106,12 +105,6 @@ void main() {
 	while (1) 
 	{
 		Last_5_odd_numbers ();
-
-		counter = 0;
-		while (counter < LOOP_WAIT_LIMIT) {
-			counter++;
-
-		} //While end
 	} //While end
 
 } //Main end

@@ -21,22 +21,7 @@ module system (
 	output reg [10:0] out_byte,
 	output reg        out_byte_en,
 	output     [7:0]  catodes,
-	output     [7:0]  anodes
-
-	//output     [12:0] ddr2_addr,          
-	//output     [2:0]  ddr2_ba,          
-	//output            ddr2_ras_n,          
-	//output            ddr2_cas_n,          
-	//output            ddr2_we_n,          
-	//output            ddr2_ck_p,          
-	//output            ddr2_ck_n,          
-	//output            ddr2_cke,          
-	//output            ddr2_cs_n,          
-	//output     [1:0]  ddr2_dm,          
-	//output            ddr2_odt,          
-	//output     [15:0] ddr2_dq,          
-	//output     [1:0]  ddr2_dqs_p,          
-	//output     [1:0]  ddr2_dqs_n  
+	output     [7:0]  anodes 
 );
 
 	// set this to 0 for better timing but less performance/MHz
@@ -100,7 +85,7 @@ module system (
 	// Store the num to display in the nexys 4 DDR (LEDS or 7-segment ).
 	reg [31:0] num_to_display;
 	reg [31:0] temp_addr;
-
+	
 	
 	seven_segment_dec DISPLAY_ODD 
 	(
@@ -113,67 +98,18 @@ module system (
  
 	// ******************************************
 
-//	reg device_temp_i = 1'b0;
-//
-//	reg [26:0] ram_a;            
-//	reg [15:0] ram_dq_i;            
-//	wire [15:0] ram_dq_o;            
-//	reg ram_cen;            
-//	reg ram_oen;            
-//	reg ram_wen;            
-//	reg ram_ub;            
-//	reg ram_lb; 
-
-
-	/* Module that connect the picorv32 with the internal Nexys DDR2 memory */
-// 	ram2ddrxadc sdram_controller_ddr2 
-// 	(	
-//		.clk_200MHz_i  ( clk ),        
-//		.rst_i         ( reset ),        
-//		.device_temp_i ( device_temp_i ),        
-//				
-//		.ram_a    ( ram_a ),            
-//		.ram_dq_i ( ram_dq_i ),            
-//		.ram_dq_o ( ram_dq_o ),            
-//		.ram_cen  ( ram_cen ),            
-//		.ram_oen  ( ram_oen ),            
-//		.ram_wen  ( ram_wen ),            
-//		.ram_ub   ( ram_ub ),            
-//		.ram_lb   ( ram_lb ),            
-//		
-//		// DDR2 ports
-//		.ddr2_addr  ( ddr2_addr ),          
-//		.ddr2_ba    ( ddr2_ba ),          
-//		.ddr2_ras_n ( ddr2_ras_n),          
-//		.ddr2_cas_n ( ddr2_cas_n ),          
-//		.ddr2_we_n  ( ddr2_we_n ),          
-//		.ddr2_ck_p  ( ddr2_ck_p ),          
-//		.ddr2_ck_n  ( ddr2_ck_n ),          
-//		.ddr2_cke   ( ddr2_cke ),          
-//		.ddr2_cs_n  ( ddr2_cs_n ),          
-//		.ddr2_dm    ( ddr2_dm ),          
-//		.ddr2_odt   ( ddr2_odt ),          
-//		.ddr2_dq    ( ddr2_dq ),          
-//		.ddr2_dqs_p ( ddr2_dqs_p ),          
-//		.ddr2_dqs_n ( ddr2_dqs_n )         
-//	);
-
-
-
-	// ******************************************
-
 	generate if (FAST_MEMORY) begin
 		always @(posedge clk) begin
 			mem_ready <= 1;
 			out_byte_en <= 0;
 			mem_rdata <= memory[mem_la_addr >> 2];
+
 			if (mem_la_write && (mem_la_addr >> 2) < MEM_SIZE) begin
 				if (mem_la_wstrb[0]) memory[mem_la_addr >> 2][ 7: 0] <= mem_la_wdata[ 7: 0];
 				if (mem_la_wstrb[1]) memory[mem_la_addr >> 2][15: 8] <= mem_la_wdata[15: 8];
 				if (mem_la_wstrb[2]) memory[mem_la_addr >> 2][23:16] <= mem_la_wdata[23:16];
 				if (mem_la_wstrb[3]) memory[mem_la_addr >> 2][31:24] <= mem_la_wdata[31:24];
 			end
-
 
 			else
 			if (mem_la_write && mem_la_addr == `SHOW_IN_DISPLAYS) begin
@@ -186,13 +122,13 @@ module system (
 			if (mem_la_write && mem_la_addr == `CACHE_ADDR) 
 			begin
 				memory [mem_la_wdata] <= mem_la_wdata+8;
-				temp_addr <= mem_la_wdata+4;		
+				temp_addr = mem_la_wdata+4;	
 			end
 				
 			else 
 			if (mem_la_write && mem_la_addr == `CACHE_DATA) 
 			begin
-				memory [temp_addr] <= mem_la_wdata;
+				memory [temp_addr] <= mem_la_wdata;		
 			end		
 		
 				
@@ -206,13 +142,13 @@ module system (
 			else 
 			if (mem_la_read && mem_la_addr == `CACHE_ADDR) 
 			begin
-				mem_rdata <= memory[temp_addr];	
+				mem_rdata <= memory[temp_addr];
 			end					
 
 			else 
 			if (mem_la_read && mem_la_addr == `CACHE_DATA) 
 			begin
-				mem_rdata <= memory[temp_addr+4];	
+				mem_rdata <= memory[temp_addr+4];
 			end	
 			
 
