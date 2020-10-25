@@ -12,8 +12,9 @@
 #define CACHE_ADDR       0x10000008
 #define CACHE_DATA       0x1000000C
 #define GET_MEMORY_ADDR  0x10000004
+#define PRESENT_ADDR     0x10000010
 
-#define LOOP_WAIT_LIMIT 20//2000000 // Delay
+#define LOOP_WAIT_LIMIT  2 //2000000 // Delay
 
 
 
@@ -92,11 +93,15 @@ void main() {
 	/* One less memory space, because the positionn 16384 is invalid */
 	for ( uint32_t i=0; i<1536; i=i+1 )
 	{
-		putuint ( CACHE_ADDR, cache_addr );
+		putuint ( PRESENT_ADDR, cache_addr );
 		putuint ( CACHE_DATA, data );
-					
-		cache_addr = cache_addr + 8;
-		data++;
+
+		if (cache_addr+8 != 16384)	
+		{	
+			cache_addr = cache_addr + 8;
+			putuint ( CACHE_ADDR, cache_addr );
+			data++;
+		}
 	} 
 
 	

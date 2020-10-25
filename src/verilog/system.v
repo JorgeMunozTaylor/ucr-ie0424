@@ -12,6 +12,7 @@
 `define CACHE_ADDR       32'h1000_0008
 `define CACHE_DATA       32'h1000_000C
 `define GET_MEMORY_ADDR  32'h1000_0004
+`define PRESENT_ADDR     32'h1000_0010
 
 
 module system (
@@ -84,7 +85,8 @@ module system (
 
 	// Store the num to display in the nexys 4 DDR (LEDS or 7-segment ).
 	reg [31:0] num_to_display;
-	reg [31:0] temp_addr;
+	reg [13:0] temp_addr;
+	reg [13:0] present_addr;
 	
 	
 	seven_segment_dec DISPLAY_ODD 
@@ -112,17 +114,31 @@ module system (
 			end
 
 			else
-			if (mem_la_write && mem_la_addr == `SHOW_IN_DISPLAYS) begin
+			if (mem_la_write && mem_la_addr == `SHOW_IN_DISPLAYS) 
+			begin
 				out_byte_en    <= 1;
 				out_byte       <= mem_la_wdata;
 				num_to_display <= mem_la_wdata; // Store the desired number for use it in the circuit.
 			end
 
+
+
+
+
+
+
+			else 
+			if (mem_la_write && mem_la_addr == `PRESENT_ADDR) 
+			begin
+				present_addr <= mem_la_wdata [13:0];
+				temp_addr    <= mem_la_wdata [13:0]+ 4;	
+			end
+
+
 			else 
 			if (mem_la_write && mem_la_addr == `CACHE_ADDR) 
 			begin
-				memory [mem_la_wdata] <= mem_la_wdata+8;
-				temp_addr = mem_la_wdata+4;	
+				memory [present_addr] <= mem_la_wdata; // Store the next address	
 			end
 				
 			else 
@@ -132,11 +148,11 @@ module system (
 			end		
 		
 				
-			/**/
+			////
 			else 
 			if (mem_la_write && mem_la_addr == `GET_MEMORY_ADDR) 
 			begin
-				temp_addr <= mem_la_wdata;
+				temp_addr <= mem_la_wdata [13:0];
 			end	
 
 			else 
@@ -150,7 +166,7 @@ module system (
 			begin
 				mem_rdata <= memory[temp_addr+4];
 			end	
-			
+
 
 		end
 	end else begin
