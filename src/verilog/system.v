@@ -22,7 +22,10 @@ module system (
 	output reg [10:0] out_byte,
 	output reg        out_byte_en,
 	output     [7:0]  catodes,
-	output     [7:0]  anodes 
+	output     [7:0]  anodes,
+
+	output reg [13:0] data_addr,
+	output reg [13:0] next_cache_addr 
 );
 
 	// set this to 0 for better timing but less performance/MHz
@@ -64,10 +67,21 @@ module system (
 		.mem_la_wstrb(mem_la_wstrb)
 	);
 
-	reg [31:0] memory [0:MEM_SIZE-1];
+	reg [31:0] memory [0:MEM_SIZE-1]; 
+	//reg [31:0] memory [0:4095]; 
+	//reg [31:0] memory2 [0:4095];//12287]; 
+	
+
+	//initial 
+	//begin
+	//	for ( i=0; i<MEM_SIZE; i=i+1)
+	//		memory[i] = 32'b0;
+	//end
+
 
 `ifdef SYNTHESIS
     initial $readmemh("../firmware/firmware.hex", memory);
+	
 `else
 	initial $readmemh("firmware.hex", memory);
 `endif
@@ -85,18 +99,19 @@ module system (
 
 	// Store the num to display in the nexys 4 DDR (LEDS or 7-segment ).
 	reg [31:0] num_to_display;
-	reg [13:0] temp_addr;
-	reg [13:0] present_addr;
+	//reg [13:0] data_addr;
+	//reg [13:0] next_cache_addr;
 	
-	
-	seven_segment_dec DISPLAY_ODD 
-	(
-		.clk			( clk ),           //
-		.num_to_display	( num_to_display), // 32 bit number that will show on the displays.
-		.reset			( reset ),         //
-		.catodes		( catodes ),       // 7 segment code of digit for the display.
-		.anodes			( anodes ) 		   // Select display that turn on.
-	);
+	integer i;
+		
+	//seven_segment_dec DISPLAY_ODD 
+	//(
+	//	.clk			( clk ),           //
+	//	.num_to_display	( num_to_display), // 32 bit number that will show on the displays.
+	//	.reset			( reset ),         //
+	//	.catodes		( catodes ),       // 7 segment code of digit for the display.
+	//	.anodes			( anodes ) 		   // Select display that turn on.
+	//);
  
 	// ******************************************
 
@@ -122,50 +137,86 @@ module system (
 			end
 
 
-
-
-
-
-
 			else 
 			if (mem_la_write && mem_la_addr == `PRESENT_ADDR) 
 			begin
-				present_addr <= mem_la_wdata [13:0];
-				temp_addr    <= mem_la_wdata [13:0]+ 4;	
+				next_cache_addr <= mem_la_wdata;
+				data_addr       <= mem_la_wdata + 4;	
 			end
+
+
+			else 
+			if (mem_la_write && mem_la_addr == `CACHE_DATA) 
+			begin
+				
+				for ( i=0; i<MEM_SIZE; i=i+1)
+				begin
+					if ( i==data_addr)
+						memory [i] <= mem_la_wdata;	
+				end	
+			end	
 
 
 			else 
 			if (mem_la_write && mem_la_addr == `CACHE_ADDR) 
 			begin
-				memory [present_addr] <= mem_la_wdata; // Store the next address	
-			end
 				
-			else 
-			if (mem_la_write && mem_la_addr == `CACHE_DATA) 
-			begin
-				memory [temp_addr] <= mem_la_wdata;		
-			end		
+				for ( i=0; i<MEM_SIZE; i=i+1)
+				begin
+					if ( i==next_cache_addr)
+						memory [i] <= mem_la_wdata;	
+				end		
 		
-				
+			end
+
+
+
 			////
 			else 
 			if (mem_la_write && mem_la_addr == `GET_MEMORY_ADDR) 
 			begin
-				temp_addr <= mem_la_wdata [13:0];
+				next_cache_addr <= mem_la_wdata;
+				data_addr       <= mem_la_wdata + 4;
 			end	
 
-			else 
-			if (mem_la_read && mem_la_addr == `CACHE_ADDR) 
-			begin
-				mem_rdata <= memory[temp_addr];
-			end					
+		
+
+
+
+
+
+
+
+
+
 
 			else 
 			if (mem_la_read && mem_la_addr == `CACHE_DATA) 
 			begin
-				mem_rdata <= memory[temp_addr+4];
+				//mem_rdata <= memory2 [data_addr]; //*****
+				
+				for ( i=0; i<MEM_SIZE; i=i+1)
+				begin
+					if ( i==data_addr)
+						mem_rdata <= memory [i];
+				end
 			end	
+
+
+
+			else 
+			if (mem_la_read && mem_la_addr == `CACHE_ADDR) 
+			begin
+				//mem_rdata <= memory2 [next_cache_addr]; //*****
+
+				for ( i=0; i<MEM_SIZE; i=i+1)
+				begin
+					if ( i==next_cache_addr)
+						mem_rdata <= memory [i];
+						
+				end
+			end	
+
 
 
 		end
