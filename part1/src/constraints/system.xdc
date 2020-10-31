@@ -1,6 +1,6 @@
 #    Modified by Jorge Munoz Taylor
 #    A53863
-#    Project 4: part 2
+#    Project 5
 #    Digital circuit laboratory I
 #    II-2020
 

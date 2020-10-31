@@ -14,8 +14,17 @@
 #define GET_MEMORY_ADDR  0x10000004
 #define PRESENT_ADDR     0x10000010
 
-#define LOOP_WAIT_LIMIT  10 //2000000 // Delay
+#define LOOP_WAIT_LIMIT  3000000 // Delay
 
+
+/**/
+void delay ()
+{
+	uint32_t counter = 0;
+
+	while (counter < LOOP_WAIT_LIMIT) 
+		counter++;	
+}
 
 
 /**/
@@ -25,17 +34,17 @@ static void putuint ( uint32_t ADDR, uint32_t DATA )
 }
 
 
-
 /**/
 uint32_t * Last_5_odd_numbers ()
 {
 	uint32_t DATA;
-	uint32_t next_cache_addr = 4096;
+	uint32_t next_cache_addr = 0;
 	uint32_t mask     		 = 1;
 	static uint32_t ODDS [5];
+
 	
 	/**/
-	while ( next_cache_addr < 16384 )
+	while ( next_cache_addr < 12288 )
 	{
 		/* Get the memory position values */
 		*((volatile uint32_t *) GET_MEMORY_ADDR) = next_cache_addr;
@@ -45,6 +54,7 @@ uint32_t * Last_5_odd_numbers ()
 	
 		// Obtain the data.
 		DATA = *((volatile uint32_t *) CACHE_DATA); //(cache_addr+4) );
+		
 		
 		/**/
 		if ( DATA & mask == 1 )
@@ -74,7 +84,7 @@ void main() {
 	uint32_t *ODDS;
 	uint32_t counter = 0;
 
-	cache_addr = 4096;
+	cache_addr = 0;
 	data       = 0;
 
 
@@ -82,7 +92,6 @@ void main() {
 	/* One less memory space, because the positionn 16384 is invalid */
 	
 	for ( uint32_t i=0; i<1536; i=i+1 )
-	//for ( uint32_t i=0; i<100; i=i+1 )
 	{
 		putuint ( PRESENT_ADDR, cache_addr );
 		putuint ( CACHE_DATA, data );
@@ -104,9 +113,7 @@ void main() {
 		{
 			putuint ( SHOW_IN_DISPLAYS, ODDS[4-i] ); 
 
-			counter = 0;
-			while (counter < LOOP_WAIT_LIMIT) 
-				counter++;
+			delay();
 		}// For end
 
 	} //While end

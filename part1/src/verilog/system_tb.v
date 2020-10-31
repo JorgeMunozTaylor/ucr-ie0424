@@ -18,18 +18,13 @@ module system_tb;
 	wire [10:0] out_byte;
 	wire out_byte_en;
 
-	wire [13:0] data_addr;
-	wire [13:0] next_cache_addr; 
 
 	system uut (
 		.clk        (clk        ),
 		.resetn     (resetn     ),
 		.trap       (trap       ),
 		.out_byte   (out_byte   ),
-		.out_byte_en(out_byte_en),
-
-		.data_addr (data_addr),
-		.next_cache_addr (next_cache_addr) 
+		.out_byte_en(out_byte_en)
 	);
 
 	always @(posedge clk) begin
