@@ -8,47 +8,8 @@
 
 `timescale 1 ns / 1 ps
 
+/* Memory position used to exchange data between the firmware and the CPU */
 `define SHOW_IN_DISPLAYS 32'h1000_0000
-`define CACHE_ADDR       32'h1000_0008
-`define CACHE_DATA       32'h1000_000C
-`define GET_MEMORY_ADDR  32'h1000_0004
-`define PRESENT_ADDR     32'h1000_0010
-
-
-
-
-
-module memory_60kb
-(
-	input clk,
-	input en,
-	input write,
-	input [13:0] addr,
-	input [31:0] data_in,
-
-	output reg [31:0] data_out
-);
-	reg [31:0] memory [ 0:12287];
-	
-
-	always @(posedge clk)
-	begin
-		if (en)
-		begin
-			if ( write )
-				memory [addr] <= data_in;
-			else
-				data_out <= memory [addr];	
-		end
-	end
-
-endmodule
-
-
-
-
-
-
 
 
 module system (
@@ -64,39 +25,11 @@ module system (
 	// set this to 0 for better timing but less performance/MHz
 	parameter FAST_MEMORY = 1;
 
-	// 16384 32bit words = 64kB memory
-	parameter MEM_SIZE = 4096;//16384;
+	// 4096 32bit words = 16kB memory
+	parameter MEM_SIZE = 4096;
 
-
+	/* CPU memory */
 	reg [31:0] memory [ 0:MEM_SIZE-1];
-
-
-	reg 	   en = 1;
-	reg [31:0] data_in;
-	reg [13:0] addr;
-	reg [13:0] read_addr;
-	reg        write;
-	wire [31:0] data_out;
-	reg [31:0] out_register = 32'b0;
-	reg [31:0] prueba;
-
-
-
-
-	memory_60kb mem_60kb
-	(
-		.clk   		( clk ),
-		.en    		( en ),
-		.write 		( write ),
-		.addr	   	( addr ),
-		.data_in  	( data_in ),
-
-		.data_out 	( data_out )
-	);
-
-
-
-
 
 	wire mem_valid;
 	wire mem_instr;
@@ -131,8 +64,6 @@ module system (
 		.mem_la_wstrb(mem_la_wstrb)
 	);
  
-	
-
 
 `ifdef SYNTHESIS
     initial $readmemh("../firmware/firmware.hex", memory);
@@ -151,12 +82,31 @@ module system (
 	*********************************************
 	*/
 
-	// Store the num to display in the nexys 4 DDR (LEDS or 7-segment ).
-	reg [31:0] num_to_display;
-	reg [13:0] data_addr;
-	reg [13:0] next_cache_addr;
+	reg en = 1;
+	reg write;
+	reg [ 13:0 ] addr;
+	reg [ 31:0 ] data_in;
+	wire [ 31:0 ] data_out;
+	integer wait_clk = 0;
+	
+	/* 64kB of memory that store the linked list */
+	MEMORY #(
+		.SIZE  (14), 
+		.WIDTH (32) 		
+	) RAM
+	(
+		.clk      ( clk ),
+		.en       ( en ),
+		.write    ( write ),
+		.addr     ( addr ),
+		.data_in  ( data_in ),
+		.data_out ( data_out )		
+	);
 
-		
+
+	reg [31:0] num_to_display; // Store the num to display in the nexys 4 DDR (LEDS or 7-segment ).
+
+	/* Circuit that show the numbers on the displays */	
 	seven_segment_dec DISPLAY_ODD 
 	(
 		.clk			( clk ),           //
@@ -166,88 +116,73 @@ module system (
 		.anodes			( anodes ) 		   // Select display that turn on.
 	);
  
-	// ******************************************
+	/*
+	******************************************
+	End of part 1 definitions
+	******************************************
+	*/
+
+
+
 
 	generate if (FAST_MEMORY) begin
 		always @(posedge clk)		
 		begin
 
-			write <= 1;
-
 			mem_ready <= 1;
 			out_byte_en <= 0;
 			mem_rdata <= memory[mem_la_addr >> 2];
 
-			if (mem_la_write && (mem_la_addr >> 2) < MEM_SIZE) begin
+			if (mem_la_write && (mem_la_addr >> 2) < MEM_SIZE) 
+			begin
 				if (mem_la_wstrb[0]) memory[mem_la_addr >> 2][ 7: 0] <= mem_la_wdata[ 7: 0];
 				if (mem_la_wstrb[1]) memory[mem_la_addr >> 2][15: 8] <= mem_la_wdata[15: 8];
 				if (mem_la_wstrb[2]) memory[mem_la_addr >> 2][23:16] <= mem_la_wdata[23:16];
-				if (mem_la_wstrb[3]) memory[mem_la_addr >> 2][31:24] <= mem_la_wdata[31:24];
+				if (mem_la_wstrb[3]) memory[mem_la_addr >> 2][31:24] <= mem_la_wdata[31:24];			
 			end
 
 
+			/* Get the odd number to display */
 			else
 			if (mem_la_write && mem_la_addr == `SHOW_IN_DISPLAYS) 
 			begin
 				out_byte_en    <= 1;
 				out_byte       <= mem_la_wdata;
-				num_to_display <= mem_la_wdata; // Store the desired number for use it in the circuit.
+				num_to_display <= mem_la_wdata; 
 			end
 
 
+			/* Write the data and adress of the next data to the memory */
 			else 
-			if (mem_la_write && mem_la_addr == `PRESENT_ADDR) 
+			if ( mem_la_write && (mem_la_addr > 32'h1000_0000) && (mem_la_addr >= 32'h1000_1000) && (mem_la_addr < 32'h1000_4000) ) 
 			begin
-				next_cache_addr <= mem_la_wdata [13:0];
-				data_addr       <= mem_la_wdata [13:0] + 4;	
+					write   <= 1;
+					data_in <= mem_la_wdata;
+					addr    <= mem_la_addr[13:0];
+					wait_clk  <= 0;
 			end
 
 
+			/* Get the data and the address tothe next data to the firmware */
 			else 
-			if (mem_la_write && mem_la_addr == `CACHE_DATA) 
+			if ( mem_la_read && (mem_la_addr > 32'h1000_0000) && (mem_la_addr >= 32'h1000_1000) && (mem_la_addr < 32'h1000_4000) ) 
 			begin
-				data_in   <= mem_la_wdata;
-				addr      <= data_addr;
-				write     <= 1;	
-			end	
 
+				/* To get the data from memory is necesary wait 1 clock cycle, the wait_clk register is used for that purpose */
+				if ( wait_clk == 0 )
+				begin
+					write    <= 0;
+					addr     <= mem_la_addr[13:0];
+					wait_clk <= 1;
+				end
 
-			else 
-			if (mem_la_write && mem_la_addr == `CACHE_ADDR) 
-			begin
-				data_in   <= mem_la_wdata;
-				addr      <= next_cache_addr;
-				write     <= 1;
+				else if ( wait_clk == 1 )
+				begin
+					write     <= 0;
+					mem_rdata <= data_out;
+					wait_clk  <= 0;
+				end
 			end
-
-
-
-			////
-			else 
-			if (mem_la_write && mem_la_addr == `GET_MEMORY_ADDR) 
-			begin
-				data_addr <= mem_la_wdata + 4;
-				addr      <= mem_la_wdata;
-				write     <= 0;
-			end	
-
-			else 
-			if (mem_la_read && mem_la_addr == `CACHE_DATA) 
-			begin
-				
-				mem_rdata <= data_out;
-				write     <= 0;	
-			end	
-
-			else 
-			if (mem_la_read && mem_la_addr == `CACHE_ADDR) 
-			begin
-				mem_rdata <= data_out;
-				addr      <= data_addr;
-				write     <= 0;
-			end	
-
-
 
 		end
 	end else begin
